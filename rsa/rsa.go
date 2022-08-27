@@ -1,6 +1,7 @@
 package rsa
 
 import (
+    "bytes"
     "crypto/rand"
     "crypto/rsa"
     "crypto/sha256"
@@ -10,9 +11,18 @@ import (
     "errors"
 )
 
-const (
-    MaxSize = 200
-)
+func split(buf []byte, lim int) [][]byte {
+    var chunk []byte
+    chunks := make([][]byte, 0, len(buf)/lim+1)
+    for len(buf) >= lim {
+        chunk, buf = buf[:lim], buf[lim:]
+        chunks = append(chunks, chunk)
+    }
+    if len(buf) > 0 {
+        chunks = append(chunks, buf[:])
+    }
+    return chunks
+}
 
 // Encrypt RSA encrypt to []byte (using public key)
 func Encrypt(data, key []byte) (b []byte, err error) {
@@ -32,7 +42,22 @@ func Encrypt(data, key []byte) (b []byte, err error) {
         return
     }
 
-    return rsa.EncryptOAEP(sha256.New(), rand.Reader, pub, data, nil)
+    // chunks encrypt
+    hash := sha256.New()
+    maxlen := pub.Size() - hash.Size()*2 - 2
+    chunks := split(data, maxlen)
+    buffer := &bytes.Buffer{}
+    for _, chunk := range chunks {
+        var out []byte
+        out, err = rsa.EncryptOAEP(hash, rand.Reader, pub, chunk, nil)
+        if err != nil {
+            return
+        }
+        buffer.Write(out)
+    }
+
+    b = buffer.Bytes()
+    return
 }
 
 // EncryptToBase64 RSA encrypt to base64 string (using public key)
@@ -61,8 +86,21 @@ func Decrypt(b, key []byte) (data []byte, err error) {
         return
     }
 
-    // decode data
-    return rsa.DecryptOAEP(sha256.New(), rand.Reader, priv, b, nil)
+    // chunks decrypt
+    maxlen := priv.PublicKey.Size()
+    chunks := split(b, maxlen)
+    buffer := &bytes.Buffer{}
+    for _, chunk := range chunks {
+        var out []byte
+        out, err = rsa.DecryptOAEP(sha256.New(), rand.Reader, priv, chunk, nil)
+        if err != nil {
+            return
+        }
+        buffer.Write(out)
+    }
+
+    data = buffer.Bytes()
+    return
 }
 
 // DecryptFromBase64 RSA decode base64 string to bytes (using private key)
