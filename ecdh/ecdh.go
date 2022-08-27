@@ -6,7 +6,6 @@ import (
     "crypto/rand"
     "crypto/sha256"
     "crypto/x509"
-    "encoding/hex"
     "github.com/liasica/go-encryption/hexutil"
 )
 
@@ -64,29 +63,23 @@ func PublicKeyDecode(str string) (pub *ecdsa.PublicKey, err error) {
 }
 
 // ShareKey exchange ecdh key from compressed public
-func ShareKey(compressed string) (shared [sha256.Size]byte, pri *ecdsa.PrivateKey, pub *ecdsa.PublicKey, err error) {
-    var data []byte
-    data, err = hex.DecodeString(compressed)
+func ShareKey(pubHex, privHex string) (shared string, err error) {
+    var pubOthers *ecdsa.PublicKey
+    pubOthers, err = PublicKeyDecode(pubHex)
     if err != nil {
         return
     }
 
-    c := elliptic.P256()
-    x, y := elliptic.UnmarshalCompressed(c, data)
-    pua := &ecdsa.PublicKey{
-        Curve: c,
-        X:     x,
-        Y:     y,
-    }
-
-    pri, pub, err = GenerateKey()
+    var priv *ecdsa.PrivateKey
+    priv, err = PrivateKeyDecode(privHex)
     if err != nil {
         return
     }
 
-    a, _ := pua.Curve.ScalarMult(pua.X, pua.Y, pri.D.Bytes())
+    a, _ := pubOthers.Curve.ScalarMult(pubOthers.X, pubOthers.Y, priv.D.Bytes())
+    b := sha256.Sum256(a.Bytes())
 
-    shared = sha256.Sum256(a.Bytes())
+    shared = hexutil.Encode(b[:])
 
     return
 }
