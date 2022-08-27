@@ -3,10 +3,15 @@ package rsa
 import (
     "crypto/rand"
     "crypto/rsa"
+    "crypto/sha256"
     "crypto/x509"
     "encoding/base64"
     "encoding/pem"
     "errors"
+)
+
+const (
+    MaxSize = 200
 )
 
 // Encrypt RSA encrypt to []byte (using public key)
@@ -26,7 +31,8 @@ func Encrypt(data, key []byte) (b []byte, err error) {
         err = errors.New("RSA Key parse error")
         return
     }
-    return rsa.EncryptPKCS1v15(rand.Reader, pub, data)
+
+    return rsa.EncryptOAEP(sha256.New(), rand.Reader, pub, data, nil)
 }
 
 // EncryptToBase64 RSA encrypt to base64 string (using public key)
@@ -56,11 +62,7 @@ func Decrypt(b, key []byte) (data []byte, err error) {
     }
 
     // decode data
-    data, err = rsa.DecryptPKCS1v15(rand.Reader, priv, b)
-    if err != nil {
-        return
-    }
-    return
+    return rsa.DecryptOAEP(sha256.New(), rand.Reader, priv, b, nil)
 }
 
 // DecryptFromBase64 RSA decode base64 string to bytes (using private key)
