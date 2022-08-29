@@ -9,6 +9,7 @@ import (
     "bytes"
     "crypto/aes"
     "crypto/cipher"
+    "encoding/base64"
 )
 
 func PKCS7Padding(ciphertext []byte, blockSize int) []byte {
@@ -37,6 +38,16 @@ func Encrypt(origData, key []byte) ([]byte, error) {
     return crypted, nil
 }
 
+func EncryptToBase64(origData, key []byte) (b64 string, err error) {
+    var b []byte
+    b, err = Encrypt(origData, key)
+    if err != nil {
+        return
+    }
+    b64 = base64.StdEncoding.EncodeToString(b)
+    return
+}
+
 // Decrypt AES decrypt
 func Decrypt(crypted, key []byte) ([]byte, error) {
     block, err := aes.NewCipher(key)
@@ -49,4 +60,19 @@ func Decrypt(crypted, key []byte) ([]byte, error) {
     blockMode.CryptBlocks(origData, crypted)
     origData = PKCS7UnPadding(origData)
     return origData, nil
+}
+
+func DecryptFromBase64(b64 string, key []byte) (data []byte, err error) {
+    var b []byte
+    b, err = base64.StdEncoding.DecodeString(b64)
+    if err != nil {
+        return
+    }
+
+    // decode data
+    data, err = Decrypt(b, key)
+    if err != nil {
+        return
+    }
+    return
 }
