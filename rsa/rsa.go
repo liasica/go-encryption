@@ -5,10 +5,7 @@ import (
     "crypto/rand"
     "crypto/rsa"
     "crypto/sha256"
-    "crypto/x509"
     "encoding/base64"
-    "encoding/pem"
-    "errors"
 )
 
 func split(buf []byte, lim int) [][]byte {
@@ -45,19 +42,9 @@ func EncryptUsePublicKey(data []byte, pub *rsa.PublicKey) (b []byte, err error) 
 
 // Encrypt RSA encrypt to []byte (using public key)
 func Encrypt(data, key []byte) (b []byte, err error) {
-    block, _ := pem.Decode(key)
-    if block == nil {
-        err = errors.New("RSA Key error")
-        return
-    }
-    var dpub any
-    dpub, err = x509.ParsePKIXPublicKey(block.Bytes)
+    var pub *rsa.PublicKey
+    pub, err = ParsePublicKey(key)
     if err != nil {
-        return
-    }
-    pub, ok := dpub.(*rsa.PublicKey)
-    if !ok {
-        err = errors.New("RSA Key parse error")
         return
     }
 
@@ -95,15 +82,8 @@ func DecryptUsePrivateKey(b []byte, priv *rsa.PrivateKey) (data []byte, err erro
 
 // Decrypt RSA decode bytes to bytes (using private key)
 func Decrypt(b, key []byte) (data []byte, err error) {
-    block, _ := pem.Decode(key)
-    if block == nil {
-        err = errors.New("RSA Key error")
-        return
-    }
-
-    // parse private
     var priv *rsa.PrivateKey
-    priv, err = x509.ParsePKCS1PrivateKey(block.Bytes)
+    priv, err = ParsePrivateKey(key)
     if err != nil {
         return
     }
