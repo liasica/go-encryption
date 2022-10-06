@@ -24,24 +24,7 @@ func split(buf []byte, lim int) [][]byte {
     return chunks
 }
 
-// Encrypt RSA encrypt to []byte (using public key)
-func Encrypt(data, key []byte) (b []byte, err error) {
-    block, _ := pem.Decode(key)
-    if block == nil {
-        err = errors.New("RSA Key error")
-        return
-    }
-    var dpub any
-    dpub, err = x509.ParsePKIXPublicKey(block.Bytes)
-    if err != nil {
-        return
-    }
-    pub, ok := dpub.(*rsa.PublicKey)
-    if !ok {
-        err = errors.New("RSA Key parse error")
-        return
-    }
-
+func EncryptUsePublicKey(data []byte, pub *rsa.PublicKey) (b []byte, err error) {
     // chunks encrypt
     hash := sha256.New()
     maxlen := pub.Size() - hash.Size()*2 - 2
@@ -60,6 +43,27 @@ func Encrypt(data, key []byte) (b []byte, err error) {
     return
 }
 
+// Encrypt RSA encrypt to []byte (using public key)
+func Encrypt(data, key []byte) (b []byte, err error) {
+    block, _ := pem.Decode(key)
+    if block == nil {
+        err = errors.New("RSA Key error")
+        return
+    }
+    var dpub any
+    dpub, err = x509.ParsePKIXPublicKey(block.Bytes)
+    if err != nil {
+        return
+    }
+    pub, ok := dpub.(*rsa.PublicKey)
+    if !ok {
+        err = errors.New("RSA Key parse error")
+        return
+    }
+
+    return EncryptUsePublicKey(data, pub)
+}
+
 // EncryptToBase64 RSA encrypt to base64 string (using public key)
 func EncryptToBase64(data, key []byte) (b64 string, err error) {
     var b []byte
@@ -68,6 +72,24 @@ func EncryptToBase64(data, key []byte) (b64 string, err error) {
         return
     }
     b64 = base64.StdEncoding.EncodeToString(b)
+    return
+}
+
+func DecryptUsePrivateKey(b []byte, priv *rsa.PrivateKey) (data []byte, err error) {
+    // chunks decrypt
+    maxlen := priv.PublicKey.Size()
+    chunks := split(b, maxlen)
+    buffer := &bytes.Buffer{}
+    for _, chunk := range chunks {
+        var out []byte
+        out, err = rsa.DecryptOAEP(sha256.New(), rand.Reader, priv, chunk, nil)
+        if err != nil {
+            return
+        }
+        buffer.Write(out)
+    }
+
+    data = buffer.Bytes()
     return
 }
 
@@ -86,21 +108,7 @@ func Decrypt(b, key []byte) (data []byte, err error) {
         return
     }
 
-    // chunks decrypt
-    maxlen := priv.PublicKey.Size()
-    chunks := split(b, maxlen)
-    buffer := &bytes.Buffer{}
-    for _, chunk := range chunks {
-        var out []byte
-        out, err = rsa.DecryptOAEP(sha256.New(), rand.Reader, priv, chunk, nil)
-        if err != nil {
-            return
-        }
-        buffer.Write(out)
-    }
-
-    data = buffer.Bytes()
-    return
+    return DecryptUsePrivateKey(b, priv)
 }
 
 // DecryptFromBase64 RSA decode base64 string to bytes (using private key)
