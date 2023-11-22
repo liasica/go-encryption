@@ -1,4 +1,4 @@
 module github.com/liasica/go-encryption
 
-go 1.19
+go 1.21
 
