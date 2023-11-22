@@ -10,12 +10,6 @@ import (
 	"github.com/liasica/go-encryption/hexutil"
 )
 
-type Key struct {
-	PublicKey  *ecdsa.PublicKey
-	PrivateKey *ecdsa.PrivateKey
-	Shared     []byte
-}
-
 // Generate ecdsa private and public keys
 func Generate() (priv *ecdsa.PrivateKey, pub *ecdsa.PublicKey, err error) {
 	priv, err = ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
@@ -70,6 +64,7 @@ func PublicKeyDecode(str string) (pub *ecdsa.PublicKey, err error) {
 	return
 }
 
+// GenerateShared generate shared key from remote public key and self's private key
 func GenerateShared(remotePublicKey *ecdsa.PublicKey, privateKey *ecdsa.PrivateKey) (key []byte, err error) {
 	var selfKey *ecdh.PrivateKey
 	selfKey, err = privateKey.ECDH()
